@@ -175,6 +175,13 @@ BleService ioService(SERVICE_UUID_AUTOMATIONIO);
     }                                                  \
   } while(0)
 
+#define PLAY_AUDIO_PIN  11
+#define FILE_UPLOAD_CONTROL_PIN 12
+#define FILE_DATA_PIN   13
+
+uint8_t fileUploading = false;
+uint8_t fileIndex = 0;
+File uploading; // the file that's uploading to
 /* This function will be called when a BLE GAP event is detected by the
  * Intel Curie BLE device */
 void blePeripheralEventCb(BlePeripheral &peripheral, BlePeripheralEvent event, void *arg)
@@ -203,12 +210,58 @@ LOG_SERIAL.println(pin);
     digitalWrite(pin, VAL_TO_DIGITAL_PIN_STATE(pin, val));
      LOG_SERIAL.print("digital write value:");
 LOG_SERIAL.println(val);
+    switch(pin){
+      case FILE_UPLOAD_CONTROL_PIN:
+        if(!fileUploading && val == 0x40) {
+          fileUploading = true;
+          fileIndex = 0;
+        }
+        else if(fileUploading && val == 0x0)
+          stopUpload();  
+        else
+          LOG_SERIAL.println("Invalid state!!! Wrong uploading state or wrong input for upload control! ");  
+        break;
+      case FILE_DATA_PIN:
+        if(uploading)
+          writeToFile(val);
+        else
+          LOG_SERIAL.println("Invalid state!!!! Uploading not started!");
+        break;  
+    }
     if(val < 5)
       playAudio(val);
       else
       rainbowCycle(10);
   } else
     LOG_SERIAL.println("Got UNKNOWN characteristic event");
+}
+
+void writeToFile(uint8_t val) {
+  if(fileIndex == 0) {
+    // this is the index received from the sender, open file for write
+        char filename[15];
+    strcpy(filename, "track001.txt");
+    filename[5] = '0' + val/100;
+      filename[6] = '0' + val/10;
+      filename[7] = '0' + val%10;
+      uploading = SD.open(filename, FILE_WRITE);
+    if (! uploading) {
+       Serial.println("Couldn't open file to upload!");
+       while (1);
+    }
+  } else {
+    // this is the file data, write to file
+    uint8_t buffer[1];
+    buffer[0] = val;
+    if(!uploading.write(buffer, 1)) {
+      Serial.println("Couldn't write to file ");
+      while(1);
+    }
+  }
+}
+void stopUpload(){
+  uploading.flush();
+  fileUploading = false;
 }
 
 /* This function will be called when a connected remote peer sets a new value for an analog output characteristic */
@@ -494,6 +547,9 @@ float map2PI(int i) {
   return PI*2.0*float(i) / float(ring.numPixels());
 }
 
+/**
+ * based on the value of the input play the audio file accordingly on the SD card
+ */
 void playAudio(uint8_t val){
     char filename[15];
     strcpy(filename, "track001.mp3");
@@ -504,5 +560,5 @@ void playAudio(uint8_t val){
       rainbowCycle(5);
       Serial.print("Playing file: ");
       Serial.println(filename);
-      musicPlayer.playFullFile("track005.mp3");
+      musicPlayer.playFullFile(filename);
   }
