@@ -215,6 +215,7 @@ LOG_SERIAL.println(val);
         if(!fileUploading && val == 0x40) {
           fileUploading = true;
           fileIndex = 0;
+          LOG_SERIAL.println("Start uploading! "); 
         }
         else if(fileUploading && val == 0x0)
           stopUpload();  
@@ -222,25 +223,30 @@ LOG_SERIAL.println(val);
           LOG_SERIAL.println("Invalid state!!! Wrong uploading state or wrong input for upload control! ");  
         break;
       case FILE_DATA_PIN:
-        if(uploading)
+        if(fileUploading)
           writeToFile(val);
         else
           LOG_SERIAL.println("Invalid state!!!! Uploading not started!");
         break;  
-    }
-    if(val < 5)
+      case PLAY_AUDIO_PIN:
+    if(val < 5) 
       playAudio(val);
       else
       rainbowCycle(10);
-  } else
-    LOG_SERIAL.println("Got UNKNOWN characteristic event");
+      break;
+      default:
+        LOG_SERIAL.println("event from unrelated pin");
+        break;
+    }
+  } else LOG_SERIAL.println("Got UNKNOWN characteristic event");
+  
 }
 
 void writeToFile(uint8_t val) {
+          char filename[15];
+    strcpy(filename, "track001.txt");
   if(fileIndex == 0) {
     // this is the index received from the sender, open file for write
-        char filename[15];
-    strcpy(filename, "track001.txt");
     filename[5] = '0' + val/100;
       filename[6] = '0' + val/10;
       filename[7] = '0' + val%10;
@@ -248,6 +254,9 @@ void writeToFile(uint8_t val) {
     if (! uploading) {
        Serial.println("Couldn't open file to upload!");
        while (1);
+    } else {
+      LOG_SERIAL.print("open file "); LOG_SERIAL.println(filename);
+      fileIndex = val;
     }
   } else {
     // this is the file data, write to file
@@ -262,6 +271,7 @@ void writeToFile(uint8_t val) {
 void stopUpload(){
   uploading.flush();
   fileUploading = false;
+  Serial.println("Stop uploading");
 }
 
 /* This function will be called when a connected remote peer sets a new value for an analog output characteristic */
@@ -410,13 +420,13 @@ void setup() {
 }
 
 void loop() {
-  LOG_SERIAL.println("in loop");
+  //LOG_SERIAL.println("in loop");
   /* Update the digital input characteristics based on current pin reading */
   for (unsigned i = 0; i < ARRAY_SIZE(digitalInputPins); i++) {
     DigitalPinConfig *pin = &digitalInputPins[i];
     uint8_t newVal = digitalRead(pin->pin);
     if (newVal != pin->val) {
-      LOG_SERIAL.println("found new digital value");
+      //LOG_SERIAL.println("found new digital value");
       CHECK_STATUS(pin->characteristic.setValue(DIGITAL_PIN_STATE_TO_VAL(pin->pin, newVal)));
       pin->val = newVal;
     }
@@ -426,7 +436,7 @@ void loop() {
     AnalogPinConfig *pin = &analogInputPins[i];
     uint16_t newVal = analogRead(pin->pin);
     if (newVal != pin->val) {      
-      LOG_SERIAL.println("found new analog value");
+      //LOG_SERIAL.println("found new analog value");
       CHECK_STATUS(pin->characteristic.setValue(newVal));
       pin->val = newVal;
     }
