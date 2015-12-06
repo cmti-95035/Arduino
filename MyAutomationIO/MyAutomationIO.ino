@@ -97,7 +97,8 @@ struct AnalogPinConfig {
 #define DIGITAL_INPUT_PINCONFIG(pin) \
   { (pin), #pin, {CHAR_UUID_DIGITAL, sizeof(uint8_t), BLE_CLIENT_ACCESS_READ_ONLY, BLE_CLIENT_NOTIFY_ENABLED}, {DESC_UUID_NUMDIGITALS, sizeof(uint8_t), BLE_CLIENT_ACCESS_READ_ONLY} }
 #define DIGITAL_OUTPUT_PINCONFIG(pin) \
-  { (pin), #pin, {CHAR_UUID_DIGITAL, sizeof(uint8_t), BLE_CLIENT_ACCESS_WRITE_ONLY, BLE_CLIENT_NOTIFY_DISABLED}, {DESC_UUID_NUMDIGITALS, sizeof(uint8_t), BLE_CLIENT_ACCESS_READ_ONLY} }
+  { (pin), #pin, {CHAR_UUID_DIGITAL, sizeof(long), BLE_CLIENT_ACCESS_WRITE_ONLY, BLE_CLIENT_NOTIFY_WITH_ACK}, {DESC_UUID_NUMDIGITALS, sizeof(long), BLE_CLIENT_ACCESS_READ_ONLY} }
+  //{ (pin), #pin, {CHAR_UUID_DIGITAL, sizeof(uint16_t), BLE_CLIENT_ACCESS_WRITE_ONLY, BLE_CLIENT_NOTIFY_WITH_ACK}, {DESC_UUID_NUMDIGITALS, sizeof(uint16_t), BLE_CLIENT_ACCESS_READ_ONLY} }  
 #define ANALOG_INPUT_PINCONFIG(pin) \
   { (pin), #pin, {CHAR_UUID_ANALOG, sizeof(uint16_t), BLE_CLIENT_ACCESS_READ_ONLY, BLE_CLIENT_NOTIFY_ENABLED} }
 #define ANALOG_OUTPUT_PINCONFIG(pin) \
@@ -142,6 +143,19 @@ struct AnalogPinConfig analogOutputPins[] = {
   ANALOG_OUTPUT_PINCONFIG(9),
 };
 
+/* Serial port to use for printing informational messages to the user */
+#define LOG_SERIAL Serial
+
+#define CHAR_UUID_FILE_DATA (0xFDAD)
+BleCharacteristic fileDataChar(CHAR_UUID_FILE_DATA, 20, BLE_CLIENT_ACCESS_WRITE_ONLY, BLE_CLIENT_NOTIFY_WITH_ACK);
+void fileDataCharEventCb(BleCharacteristic &characteristic, BleCharacteristicEvent event, void *arg)
+{
+    LOG_SERIAL.println("received file data event");
+  if (BLE_CHAR_EVENT_WRITE == event) {
+    char data[20];
+    characteristic.getValue(data);
+  }
+}
 /* BLE Peripheral Device (this Intel Curie device) */
 BlePeripheral bleDevice;
 
@@ -158,8 +172,6 @@ BleService ioService(SERVICE_UUID_AUTOMATIONIO);
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x)[0])
 
-/* Serial port to use for printing informational messages to the user */
-#define LOG_SERIAL Serial
 
 /* For convenience, this macro will invoke a specified function call and will
  * check the status value returned to ensure it is successful.  If not, it will
@@ -199,11 +211,12 @@ void blePeripheralEventCb(BlePeripheral &peripheral, BlePeripheralEvent event, v
 void digitalOutputCharEventCb(BleCharacteristic &characteristic, BleCharacteristicEvent event, void *arg)
 {
   unsigned pin = (unsigned)arg;
-  uint8_t val;
+  long val;
 
 LOG_SERIAL.print("Got digital output characteristic event from pin:");
 LOG_SERIAL.println(pin);
   if (BLE_CHAR_EVENT_WRITE == event) {
+    uint8_t size;
     /* The remote client has updated the value for this pin, get the current value */
     characteristic.getValue(val);
     /* Update the state of the pin to reflect the new value */
@@ -260,9 +273,12 @@ void writeToFile(uint8_t val) {
     }
   } else {
     // this is the file data, write to file
-    uint8_t buffer[1];
-    buffer[0] = val;
-    if(!uploading.write(buffer, 1)) {
+    uint8_t buffer[4];
+    buffer[0] = val && 0xff;
+    buffer[1] = val>>8 && 0xff;
+    buffer[2] = val>>16 && 0xff;
+    buffer[3] = val>>24 && 0xff;
+    if(!uploading.write(buffer, 4)) {
       Serial.println("Couldn't write to file ");
       while(1);
     }
@@ -401,6 +417,10 @@ void setup() {
     pin->characteristic.setEventCallback(analogOutputCharEventCb, (void*)pin->pin);
   }
 
+
+  fileDataChar.setEventCallback(fileDataCharEventCb);
+  // add the file data characteristic
+  ioService.addCharacteristic(fileDataChar);
   /* Now activate the BLE device.  It will start continuously transmitting BLE
    * advertising packets and thus become visible to remote BLE central devices
    * (e.g smartphones) until it receives a new connection */
@@ -481,7 +501,7 @@ void rainbow(uint8_t wait) {
 void rainbowCycle(uint8_t wait) {
   uint16_t i, j;
 
-  for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
+  for(j=0; j<256; j++) { // 5 cycles of all colors on wheel
     for(i=0; i< ring.numPixels(); i++) {
       ring.setPixelColor(i, Wheel(((i * 256 / ring.numPixels()) + j) & 255));
     }
