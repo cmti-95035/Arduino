@@ -91,6 +91,7 @@ struct AnalogPinConfig {
   uint16_t          val;
 };
 
+#define USE_MUSIC_SHIELD  0
 /* Macros to simplify the definition of a new PinConfig struct for a given pin number
  * Note that input pins are only readable by the remote device, while output pins are
  * only writable.  Different characteristic UUIDs are used for digital and analog pins */
@@ -266,24 +267,33 @@ void writeToFile(uint8_t* val, uint16_t size) {
     filename[5] = '0' + val[0]/100;
     filename[6] = '0' + val[0]/10;
     filename[7] = '0' + val[0]%10;
-    uploading = SD.open(filename, FILE_WRITE);
-    if (! uploading) {
-       Serial.println("Couldn't open file to upload!");
-       while (1);
+    if(USE_MUSIC_SHIELD) {
+      uploading = SD.open(filename, FILE_WRITE);
+      if (! uploading) {
+         Serial.println("Couldn't open file to upload!");
+         while (1);
+      } else {
+        LOG_SERIAL.print("open file "); LOG_SERIAL.println(filename);
+        fileIndex = val[0];
+      }
     } else {
       LOG_SERIAL.print("open file "); LOG_SERIAL.println(filename);
-      fileIndex = val[0];
     }
   } else {
-    // this is the file data, write to file
-    if(!uploading.write(val, size)) {
-      Serial.println("Couldn't write to file ");
-      while(1);
+    if(USE_MUSIC_SHIELD) {
+      // this is the file data, write to file
+      if(!uploading.write(val, size)) {
+        Serial.println("Couldn't write to file ");
+        while(1);
+      }
+    } else {
+      LOG_SERIAL.print("write #bytes to file: "); LOG_SERIAL.println(size);
     }
   }
 }
 void stopUpload(){
-  uploading.flush();
+  if(USE_MUSIC_SHIELD)
+    uploading.flush();
   fileUploading = false;
   Serial.println("Stop uploading");
   clockwise(ring.Color(0,255,0), 100); // Green
@@ -590,5 +600,6 @@ void playAudio(uint8_t val){
       rainbowCycle(5);
       Serial.print("Playing file: ");
       Serial.println(filename);
-      musicPlayer.playFullFile(filename);
+      if(USE_MUSIC_SHIELD)
+        musicPlayer.playFullFile(filename);
   }
