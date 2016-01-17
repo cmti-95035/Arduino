@@ -104,7 +104,9 @@ struct AnalogPinConfig {
   { (pin), #pin, {CHAR_UUID_ANALOG, sizeof(uint16_t), BLE_CLIENT_ACCESS_READ_ONLY, BLE_CLIENT_NOTIFY_ENABLED} }
 #define ANALOG_OUTPUT_PINCONFIG(pin) \
   { (pin), #pin, {CHAR_UUID_ANALOG, sizeof(uint16_t), BLE_CLIENT_ACCESS_WRITE_ONLY, BLE_CLIENT_NOTIFY_DISABLED} }
-
+//
+//#define DIGITAL_OUTPUT_PINCONFIG(pin, name) \
+//  { (pin), name, {CHAR_UUID_DIGITAL, sizeof(uint32_t), BLE_CLIENT_ACCESS_WRITE_ONLY, BLE_CLIENT_NOTIFY_WITH_ACK}, {DESC_UUID_NUMDIGITALS, sizeof(uint32_t), BLE_CLIENT_ACCESS_READ_ONLY} }
 /* The following lists of pins are configured and presented to
  * the remote BLE device as digital/analog input/output pins
  *
@@ -124,9 +126,15 @@ struct DigitalPinConfig digitalInputPins[] = {
 
 struct DigitalPinConfig digitalOutputPins[] = {
   DIGITAL_OUTPUT_PINCONFIG(11),
-  DIGITAL_OUTPUT_PINCONFIG(12),
+  DIGITAL_OUTPUT_PINCONFIG(12),  
   DIGITAL_OUTPUT_PINCONFIG(13),
 };
+//
+//struct DigitalPinConfig digitalOutputPins[] = {
+//  DIGITAL_OUTPUT_PINCONFIG(11, "PLAY_AUDIO_PIN"),
+//  DIGITAL_OUTPUT_PINCONFIG(12, "FILE_UPLOAD_CONTROL_PIN"),
+//  DIGITAL_OUTPUT_PINCONFIG(13, "FILE_DATA_PIN"),
+//};
 
 struct AnalogPinConfig analogInputPins[] = {
   ANALOG_INPUT_PINCONFIG(14),
@@ -261,7 +269,7 @@ void digitalOutputCharEventCb(BleCharacteristic &characteristic, BleCharacterist
 // method to write to a file trunk by trunk
 void writeToFile(uint8_t* val, uint16_t size) {
   char filename[15];
-  strcpy(filename, "track001.txt");
+  strcpy(filename, "track001.mp3");
   if(fileIndex == 0) {
     // this is the index received from the sender, open file for write
     filename[5] = '0' + val[0]/100;
