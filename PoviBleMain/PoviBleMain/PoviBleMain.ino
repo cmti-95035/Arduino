@@ -151,7 +151,7 @@ void fileDataCharEventCb(BleCharacteristic &characteristic, BleCharacteristicEve
 {
     LOG_SERIAL.println("received file data event");
   if (BLE_CHAR_EVENT_WRITE == event) {
-    uint8_t data[20];
+    char data[20];
     characteristic.getValue(data);
   }
 }
@@ -215,9 +215,13 @@ void digitalOutputCharEventCb(BleCharacteristic &characteristic, BleCharacterist
   LOG_SERIAL.print("Got digital output characteristic event from pin:");
   LOG_SERIAL.println(pin);
   if (BLE_CHAR_EVENT_WRITE == event) {
-    uint8_t size;
+    uint16_t size;
+    uint8_t data[20];
+    memset(data, 0, 20);
     /* The remote client has updated the value for this pin, get the current value */
-    characteristic.getValue(val);
+    characteristic.getValue(data, size);
+    if(size >0)
+      val = data[0];
     /* Update the state of the pin to reflect the new value */
     digitalWrite(pin, VAL_TO_DIGITAL_PIN_STATE(pin, val));
     LOG_SERIAL.print("digital write value:");
@@ -238,7 +242,7 @@ void digitalOutputCharEventCb(BleCharacteristic &characteristic, BleCharacterist
         break;
       case FILE_DATA_PIN:
         if(fileUploading)
-          writeToFile(val);
+          writeToFile(data, size);
         else
           LOG_SERIAL.println("Invalid state!!!! Uploading not started!");
         break;  
@@ -254,7 +258,7 @@ void digitalOutputCharEventCb(BleCharacteristic &characteristic, BleCharacterist
 }
 
 // method to write to a file trunk by trunk
-void writeToFile(uint8_t* val, uint8_t size) {
+void writeToFile(uint8_t* val, uint16_t size) {
   char filename[15];
   strcpy(filename, "track001.txt");
   if(fileIndex == 0) {
@@ -268,7 +272,7 @@ void writeToFile(uint8_t* val, uint8_t size) {
        while (1);
     } else {
       LOG_SERIAL.print("open file "); LOG_SERIAL.println(filename);
-      fileIndex = val;
+      fileIndex = val[0];
     }
   } else {
     // this is the file data, write to file
