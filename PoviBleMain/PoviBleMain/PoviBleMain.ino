@@ -62,7 +62,7 @@ Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(SHIELD_RESET
  */
 
 /* Device name: Appears in advertising packets. Must not exceed 20 characters in length */
-#define DEVICE_NAME               "AE_IO"
+#define DEVICE_NAME               "POVI101"
 /* UUID for Automation I/O service */
 #define SERVICE_UUID_AUTOMATIONIO (0x1815)
 /* UUID for digital characteristic */
@@ -277,6 +277,7 @@ void writeToFile(uint8_t* val, uint16_t size) {
         fileIndex = val[0];
       }
     } else {
+      fileIndex = val[0];
       LOG_SERIAL.print("open file "); LOG_SERIAL.println(filename);
     }
   } else {
@@ -386,46 +387,46 @@ void setup() {
     CHECK_STATUS(pin->numDigitalsDesc.setValue((uint8_t) 1));
   }
 
-  /* Add characteristics for the Analog Inputs */
-  for (unsigned i = 0; i < ARRAY_SIZE(analogInputPins); i++) {
-    AnalogPinConfig *pin = &analogInputPins[i];
-
-    /* Add the User-Description for this pin */
-    CHECK_STATUS(pin->characteristic.addUserDescription(pin->name));
-    /* Add the Presentation-Format for this pin
-     *   format:      0x6    (unsigned 16-bit integer)
-     *   exponent:    0      (Not Applicable)
-     *   unit:        0x2700 (BLE GATT Unit UUID: unitless)
-     *   nameSpace:   0x1    (Bluetooth standard namespace)
-     *   description: pin+1  (Instance number of this characteristic)
-     */
-    CHECK_STATUS(pin->characteristic.addPresentationFormat(0x6, 0, 0x2700, 0x1, pin->pin + 1));
-    /* Add the characteristic for this pin */
-    CHECK_STATUS(ioService.addCharacteristic(pin->characteristic));
-    /* Set an initial value for this characteristic; refreshed later in the loop() function */
-    pin->val = analogRead(pin->pin);
-    CHECK_STATUS(pin->characteristic.setValue(pin->val));
-  }
-
-  /* Add characteristics for the Analog Outputs */
-  for (unsigned i = 0; i < ARRAY_SIZE(analogOutputPins); i++) {
-    AnalogPinConfig *pin = &analogOutputPins[i];
-
-    /* Add the User-Description for this pin */
-    CHECK_STATUS(pin->characteristic.addUserDescription(pin->name));
-    /* Add the Presentation-Format for this pin
-     *   format:      0x6    (unsigned 16-bit integer)
-     *   exponent:    0      (Not Applicable)
-     *   unit:        0x2700 (BLE GATT Unit UUID: unitless)
-     *   nameSpace:   0x1    (Bluetooth standard namespace)
-     *   description: pin+1  (Instance number of this characteristic)
-     */
-    CHECK_STATUS(pin->characteristic.addPresentationFormat(0x6, 0, 0x2700, 0x1, pin->pin + 1));
-    /* Add the characteristic for this pin */
-    CHECK_STATUS(ioService.addCharacteristic(pin->characteristic));
-    /* Add a callback to be triggered if the remote device updates the value for this pin */
-    pin->characteristic.setEventCallback(analogOutputCharEventCb, (void*)pin->pin);
-  }
+//  /* Add characteristics for the Analog Inputs */
+//  for (unsigned i = 0; i < ARRAY_SIZE(analogInputPins); i++) {
+//    AnalogPinConfig *pin = &analogInputPins[i];
+//
+//    /* Add the User-Description for this pin */
+//    CHECK_STATUS(pin->characteristic.addUserDescription(pin->name));
+//    /* Add the Presentation-Format for this pin
+//     *   format:      0x6    (unsigned 16-bit integer)
+//     *   exponent:    0      (Not Applicable)
+//     *   unit:        0x2700 (BLE GATT Unit UUID: unitless)
+//     *   nameSpace:   0x1    (Bluetooth standard namespace)
+//     *   description: pin+1  (Instance number of this characteristic)
+//     */
+//    CHECK_STATUS(pin->characteristic.addPresentationFormat(0x6, 0, 0x2700, 0x1, pin->pin + 1));
+//    /* Add the characteristic for this pin */
+//    CHECK_STATUS(ioService.addCharacteristic(pin->characteristic));
+//    /* Set an initial value for this characteristic; refreshed later in the loop() function */
+//    pin->val = analogRead(pin->pin);
+//    CHECK_STATUS(pin->characteristic.setValue(pin->val));
+//  }
+//
+//  /* Add characteristics for the Analog Outputs */
+//  for (unsigned i = 0; i < ARRAY_SIZE(analogOutputPins); i++) {
+//    AnalogPinConfig *pin = &analogOutputPins[i];
+//
+//    /* Add the User-Description for this pin */
+//    CHECK_STATUS(pin->characteristic.addUserDescription(pin->name));
+//    /* Add the Presentation-Format for this pin
+//     *   format:      0x6    (unsigned 16-bit integer)
+//     *   exponent:    0      (Not Applicable)
+//     *   unit:        0x2700 (BLE GATT Unit UUID: unitless)
+//     *   nameSpace:   0x1    (Bluetooth standard namespace)
+//     *   description: pin+1  (Instance number of this characteristic)
+//     */
+//    CHECK_STATUS(pin->characteristic.addPresentationFormat(0x6, 0, 0x2700, 0x1, pin->pin + 1));
+//    /* Add the characteristic for this pin */
+//    CHECK_STATUS(ioService.addCharacteristic(pin->characteristic));
+//    /* Add a callback to be triggered if the remote device updates the value for this pin */
+//    pin->characteristic.setEventCallback(analogOutputCharEventCb, (void*)pin->pin);
+//  }
 
 
   fileDataChar.setEventCallback(fileDataCharEventCb);
@@ -437,16 +438,19 @@ void setup() {
   CHECK_STATUS(bleDevice.start());
   LOG_SERIAL.println("Bluetooth device active, waiting for connections...");
 
-    ring.begin();
+  ring.begin();
   ring.setBrightness(5);  // Lower brightness and save eyeballs!
   ring.show(); // Initialize all pixels to 'off'
   clockwise(ring.Color(0,0,0), 10); // Black
-  if (! musicPlayer.begin()) { // initialize the music player
-    while (1);
+
+  if(USE_MUSIC_SHIELD){
+    if (! musicPlayer.begin()) { // initialize the music player
+      while (1);
+    }
+    SD.begin(CARDCS);
+    musicPlayer.setVolume(00, 00); //(left,right), lower numbers means louder, currently at loudest
+    musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);
   }
-  SD.begin(CARDCS);
-  musicPlayer.setVolume(00, 00); //(left,right), lower numbers means louder, currently at loudest
-  musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);
 }
 
 void loop() {
@@ -462,15 +466,15 @@ void loop() {
     }
   }
   /* Update the analog input characteristics based on current pin reading*/
-  for (unsigned i = 0; i < ARRAY_SIZE(analogInputPins); i++) {
-    AnalogPinConfig *pin = &analogInputPins[i];
-    uint16_t newVal = analogRead(pin->pin);
-    if (newVal != pin->val) {      
-      //LOG_SERIAL.println("found new analog value");
-      CHECK_STATUS(pin->characteristic.setValue(newVal));
-      pin->val = newVal;
-    }
-  }
+//  for (unsigned i = 0; i < ARRAY_SIZE(analogInputPins); i++) {
+//    AnalogPinConfig *pin = &analogInputPins[i];
+//    uint16_t newVal = analogRead(pin->pin);
+//    if (newVal != pin->val) {      
+//      //LOG_SERIAL.println("found new analog value");
+//      CHECK_STATUS(pin->characteristic.setValue(newVal));
+//      pin->val = newVal;
+//    }
+//  }
 
   /* Repeat the loop every 500ms - can be changed if desired */
 //  delay(1500);
@@ -505,6 +509,7 @@ void rainbow(uint8_t wait) {
     ring.show();
     delay(wait);
   }
+  clockwise(ring.Color(0,0,0), 10); // Black
 }
 
 // Slightly different, this makes the rainbow equally distributed throughout
@@ -518,6 +523,7 @@ void rainbowCycle(uint8_t wait) {
     ring.show();
     delay(wait);
   }
+  clockwise(ring.Color(0,0,0), 10); // Black
 }
 
 // Input a value 0 to 255 to get a color value.
@@ -563,7 +569,7 @@ void sineColorWave(uint8_t wait) {
     ring.show();
     delay(wait);
   }
-
+  clockwise(ring.Color(0,0,0), 10); // Black
 }
 
 /**
@@ -597,7 +603,7 @@ void playAudio(uint8_t val){
       filename[6] = '0' + val/10;
       filename[7] = '0' + val%10;
 
-      rainbowCycle(5);
+      rainbowCycle(10);
       Serial.print("Playing file: ");
       Serial.println(filename);
       if(USE_MUSIC_SHIELD)
