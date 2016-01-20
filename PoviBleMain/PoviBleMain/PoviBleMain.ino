@@ -517,7 +517,6 @@ void button_click_check() {
   if (reading != lastButtonState && reading != LOW) {
     // triger some play function
     LOG_SERIAL.print("button clicked. will play file#"); LOG_SERIAL.println(lastPlayed);
-    playAudioFromButtonClick(lastPlayed);
     // reset the debouncing timer
     lastDebounceTime = millis();
     if(USE_MUSIC_SHIELD) {
