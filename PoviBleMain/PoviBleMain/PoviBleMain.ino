@@ -28,7 +28,7 @@
 
 // constants won't change. They're used here to
 // set pin numbers:
-const int buttonPin = 6;    // the number of the pushbutton pin
+const int buttonPin = 8;    // the number of the pushbutton pin
 
 // Variables will change:
 int buttonState;             // the current reading from the input pin
@@ -42,7 +42,7 @@ uint8_t lastPlayed = 1;    // the file index of playable mp3 starts with 1
 
 // Which pin on the Arduino is connected to the NeoPixels?
 // On a Trinket or Gemma we suggest changing this to 1
-#define PIN            8
+#define PIN            9
 
 // How many NeoPixels are attached to the Arduino?
 #define NUMPIXELS      24
@@ -134,7 +134,7 @@ struct AnalogPinConfig {
 struct DigitalPinConfig digitalInputPins[] = {
   DIGITAL_INPUT_PINCONFIG(2),
   DIGITAL_INPUT_PINCONFIG(4),
-  DIGITAL_INPUT_PINCONFIG(7),
+  DIGITAL_INPUT_PINCONFIG(5),
 };
 
 struct DigitalPinConfig digitalOutputPins[] = {
@@ -507,6 +507,8 @@ void button_click_check() {
   // read the state of the switch into a local variable:
   int reading = digitalRead(buttonPin);
 //  LOG_SERIAL.print("reading:"); LOG_SERIAL.println(reading);
+//  LOG_SERIAL.print("lastButtonState:"); LOG_SERIAL.println(lastButtonState);
+//  LOG_SERIAL.println(LOW);
   // check to see if you just pressed the button
   // (i.e. the input went from LOW to HIGH),  and you've waited
   // long enough since the last press to ignore any noise:
@@ -515,6 +517,7 @@ void button_click_check() {
   if (reading != lastButtonState && reading != LOW) {
     // triger some play function
     LOG_SERIAL.print("button clicked. will play file#"); LOG_SERIAL.println(lastPlayed);
+    playAudioFromButtonClick(lastPlayed);
     // reset the debouncing timer
     lastDebounceTime = millis();
     if(USE_MUSIC_SHIELD) {
@@ -685,16 +688,16 @@ void playAudioFromButtonClick(uint8_t val){
     filename[6] = '0' + val/10;
     filename[7] = '0' + val%10;
 
-    rainbowCycle(10);
+    rainbowCycle(2);
     Serial.print("Playing file: ");
     Serial.println(filename);
+    lastPlayed++;
     if(USE_MUSIC_SHIELD) {
       if (! SD.exists(filename)) {
         Serial.println("Reach to end of all files. Will start over from beginning.");
         strcpy(filename, "track001.mp3");
         lastPlayed = 1;
-      } else 
-        lastPlayed++;
+      }
       musicPlayer.playFullFile(filename);
     }
 }
