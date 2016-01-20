@@ -26,6 +26,19 @@
   #include <avr/power.h>
 #endif
 
+// constants won't change. They're used here to
+// set pin numbers:
+const int buttonPin = 6;    // the number of the pushbutton pin
+
+// Variables will change:
+int buttonState;             // the current reading from the input pin
+int lastButtonState = LOW;   // the previous reading from the input pin
+
+// the following variables are long's because the time, measured in miliseconds,
+// will quickly become a bigger number than can be stored in an int.
+long lastDebounceTime = 0;  // the last time the output pin was toggled
+long debounceDelay = 50;    // the debounce time; increase if the output flickers
+uint8_t lastPlayed = 1;    // the file index of playable mp3 starts with 1
 
 // Which pin on the Arduino is connected to the NeoPixels?
 // On a Trinket or Gemma we suggest changing this to 1
@@ -330,6 +343,7 @@ void setup() {
   
     LOG_SERIAL.println("serial started");
 
+  pinMode(buttonPin, INPUT);
   /* Set a name for the BLE device */
   CHECK_STATUS(bleDevice.setName(DEVICE_NAME));
 
@@ -486,8 +500,47 @@ void loop() {
 
   /* Repeat the loop every 500ms - can be changed if desired */
 //  delay(1500);
+  button_click_check();
 }
 
+void button_click_check() {
+  // read the state of the switch into a local variable:
+  int reading = digitalRead(buttonPin);
+//  LOG_SERIAL.print("reading:"); LOG_SERIAL.println(reading);
+  // check to see if you just pressed the button
+  // (i.e. the input went from LOW to HIGH),  and you've waited
+  // long enough since the last press to ignore any noise:
+
+  // If the switch changed, due to noise or pressing:
+  if (reading != lastButtonState && reading != LOW) {
+    // triger some play function
+    LOG_SERIAL.print("button clicked. will play file#"); LOG_SERIAL.println(lastPlayed);
+    // reset the debouncing timer
+    lastDebounceTime = millis();
+    if(USE_MUSIC_SHIELD) {
+      if(! musicPlayer.paused()) {
+        // it's playing, pause it
+        musicPlayer.pausePlaying(true);
+      } else if(musicPlayer.stopped()) {
+        playAudioFromButtonClick(lastPlayed);
+      }
+    }
+  }
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    // whatever the reading is at, it's been there for longer
+    // than the debounce delay, so take it as the actual current state:
+
+    // if the button state has changed:
+    if (reading != buttonState) {
+      buttonState = reading;    
+    }   
+  }
+
+  // save the reading.  Next time through the loop,
+  // it'll be the lastButtonState:
+  lastButtonState = reading;  
+}
 // light up all LEDs with one color clockwise
 void clockwise(uint32_t color, uint8_t wait) {
   for(uint16_t i=0; i<ring.numPixels(); i++) {
@@ -608,12 +661,40 @@ void playAudio(uint8_t val){
     char filename[15];
     strcpy(filename, "track001.mp3");
     filename[5] = '0' + val/100;
-      filename[6] = '0' + val/10;
-      filename[7] = '0' + val%10;
+    filename[6] = '0' + val/10;
+    filename[7] = '0' + val%10;
 
-      rainbowCycle(10);
-      Serial.print("Playing file: ");
-      Serial.println(filename);
-      if(USE_MUSIC_SHIELD)
-        musicPlayer.playFullFile(filename);
-  }
+    rainbowCycle(10);
+    Serial.print("Playing file: ");
+    Serial.println(filename);
+    if(USE_MUSIC_SHIELD) {
+      if (! SD.exists(filename)) {
+        Serial.println("Error: No such file to be played!!!");
+      }
+      musicPlayer.playFullFile(filename);
+    }
+}
+
+/**
+ * based on the value of the input play the audio file accordingly on the SD card
+ */
+void playAudioFromButtonClick(uint8_t val){
+    char filename[15];
+    strcpy(filename, "track001.mp3");
+    filename[5] = '0' + val/100;
+    filename[6] = '0' + val/10;
+    filename[7] = '0' + val%10;
+
+    rainbowCycle(10);
+    Serial.print("Playing file: ");
+    Serial.println(filename);
+    if(USE_MUSIC_SHIELD) {
+      if (! SD.exists(filename)) {
+        Serial.println("Reach to end of all files. Will start over from beginning.");
+        strcpy(filename, "track001.mp3");
+        lastPlayed = 1;
+      } else 
+        lastPlayed++;
+      musicPlayer.playFullFile(filename);
+    }
+}
