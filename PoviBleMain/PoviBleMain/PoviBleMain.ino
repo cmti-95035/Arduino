@@ -63,7 +63,7 @@ Adafruit_NeoPixel ring = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800)
 #define SHIELD_CS     7      // VS1053 chip select pin (output)
 #define SHIELD_DCS    6
 #define CARDCS 4
-#define DREQ 2
+#define DREQ 3
 
 Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS); //create mp3 player object
 /*
@@ -104,7 +104,7 @@ struct AnalogPinConfig {
   uint16_t          val;
 };
 
-#define USE_MUSIC_SHIELD  0
+#define USE_MUSIC_SHIELD  1
 /* Macros to simplify the definition of a new PinConfig struct for a given pin number
  * Note that input pins are only readable by the remote device, while output pins are
  * only writable.  Different characteristic UUIDs are used for digital and analog pins */
@@ -132,8 +132,8 @@ struct AnalogPinConfig {
  * - a maximum of 16 pins are currently supported (limited by number of characteristics)
  */
 struct DigitalPinConfig digitalInputPins[] = {
-  DIGITAL_INPUT_PINCONFIG(2),
-  DIGITAL_INPUT_PINCONFIG(4),
+//  DIGITAL_INPUT_PINCONFIG(2),
+//  DIGITAL_INPUT_PINCONFIG(4),
   DIGITAL_INPUT_PINCONFIG(5),
 };
 
@@ -520,10 +520,13 @@ void button_click_check() {
     // reset the debouncing timer
     lastDebounceTime = millis();
     if(USE_MUSIC_SHIELD) {
-      if(! musicPlayer.paused()) {
-        // it's playing, pause it
-        musicPlayer.pausePlaying(true);
-      } else if(musicPlayer.stopped()) {
+//      if(! musicPlayer.paused()) {
+//        // it's playing, pause it
+//        musicPlayer.pausePlaying(true);
+//      } else if(musicPlayer.stopped()) {
+//        playAudioFromButtonClick(lastPlayed);
+//      }
+if(musicPlayer.stopped()) {
         playAudioFromButtonClick(lastPlayed);
       }
     }
